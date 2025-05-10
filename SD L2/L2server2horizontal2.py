@@ -13,23 +13,28 @@ class InsultServer:
         self.observers = []
 
     def guardar_insulto(self, insulto):
-        time.sleep(0.2)
+        time.sleep(0.1)
+        print("Petición procesada: guardar_insulto")
         if insulto not in self.lista_insultos:
             self.lista_insultos.add(insulto)
             return f"Insulto '{insulto}' añadido a la lista."
         return f"El insulto '{insulto}' ya está en la lista."
 
     def mostrar_todos_insultos(self):
-        time.sleep(0.2)
+        time.sleep(0.1)
+        print("Petición procesada: mostrar_todos_insultos")
         return list(self.lista_insultos)
 
     def publicar_insulto_random(self):
-        time.sleep(0.2)
+        time.sleep(0.1)
+        print("Petición procesada: publicar_insulto_random")
         if self.lista_insultos:
             return random.choice(list(self.lista_insultos))
         return "No hay insultos disponibles."
 
     def suscribirse(self, observer_uri):
+        time.sleep(0.1)
+        print("Petición procesada: suscribirse")
         if observer_uri not in self.observers:
             self.observers.append(observer_uri)
             return f"Suscripción exitosa del cliente {observer_uri}."
