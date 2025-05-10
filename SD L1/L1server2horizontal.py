@@ -1,0 +1,86 @@
+# servidor.py
+import sys
+from xmlrpc.server import SimpleXMLRPCServer
+from xmlrpc.server import SimpleXMLRPCRequestHandler
+import xmlrpc.client
+import random
+import re
+import time
+import threading
+
+class RequestHandler(SimpleXMLRPCRequestHandler):
+    rpc_paths = ('/RPC2',)
+
+class Insultos:
+    def __init__(self):
+        self.lista_insultos = {"inutil", "payaso", "tonto", "retrasado", "subnormal"}
+        self.textos_filtrados = []
+        self.suscriptores = []
+
+    def guardar_insulto(self, insult):
+        self.lista_insultos.add(insult)
+        return f"Insulto '{insult}' añadido"
+
+    def mostrar_todos_insultos(self):
+        return list(self.lista_insultos)
+
+    def publicar_insulto_random(self):
+        if self.lista_insultos:
+            return random.choice(list(self.lista_insultos))
+        return "De momento no hay insultos."
+
+    def filtrar_texto(self, texto):
+        if not self.lista_insultos:
+            return "No hay insultos para filtrar"
+        
+        patron = r'\b(' + '|'.join(re.escape(insulto) for insulto in self.lista_insultos) + r')\b'
+        texto_filtrado = re.sub(patron, "CENSORED", texto, flags=re.IGNORECASE)
+
+        self.textos_filtrados.append(texto_filtrado)
+        return texto_filtrado
+
+    def obtener_textos_filtrados(self):
+        return self.textos_filtrados
+
+    def suscribirse(self, client_url):
+        if client_url not in self.suscriptores:
+            self.suscriptores.append(client_url)
+            return f"Cliente {client_url} suscrito correctamente."
+        return f"Cliente {client_url} ya estaba suscrito."
+
+    def desuscribirse(self, client_url):
+        if client_url in self.suscriptores:
+            self.suscriptores.remove(client_url)
+            return f"Cliente {client_url} eliminado de la lista de suscriptores."
+        return f"Cliente {client_url} no estaba suscrito."
+
+    def notificar_observadores(self):
+        while True:
+            if self.lista_insultos and self.suscriptores:
+                insulto_random = self.publicar_insulto_random()
+                for subscriber_url in self.suscriptores:
+                    try:
+                        cliente = xmlrpc.client.ServerProxy(subscriber_url)
+                        cliente.recibir_insulto(insulto_random)
+                    except Exception as e:
+                        print(f"Error enviando a {subscriber_url}: {e}")
+                        self.suscriptores.remove(subscriber_url)
+            time.sleep(5)
+
+if __name__ == "__main__":
+    # Obtener el puerto desde los argumentos
+    # Utilizaré varios puertos que simulan nuevos nodos
+    port = 8000  # por defecto
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+
+    with SimpleXMLRPCServer(('localhost', port), requestHandler=RequestHandler) as server:
+        server.register_introspection_functions()
+        servidor_insultos = Insultos()
+        server.register_instance(servidor_insultos)
+
+        observer_thread = threading.Thread(target=servidor_insultos.notificar_observadores, daemon=True)
+        observer_thread.start()
+
+        print(f"Servidor XML-RPC activo en el puerto {port}")
+        server.serve_forever()
